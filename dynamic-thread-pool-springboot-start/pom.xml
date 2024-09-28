@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.ztw</groupId>
         <artifactId>dynamic-thread-pool</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>1.0</version>
     </parent>
 
     <artifactId>dynamic-thread-pool-springboot-start</artifactId>
@@ -56,6 +56,12 @@
             <groupId>org.redisson</groupId>
             <artifactId>redisson-spring-boot-starter</artifactId>
             <version>3.26.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>RELEASE</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 
