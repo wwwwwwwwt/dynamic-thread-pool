@@ -31,7 +31,7 @@ public class RedisRegistry implements IRegistry {
 
     @Override
     public void reportThreadPoolConfigParameter(ThreadPoolConfigEntity threadPoolConfigEntity) {
-        String cacheKey = RegistryEnumVO.THREAD_POOL_CONFIG_LIST_KEY.getKey() + "_" + threadPoolConfigEntity.getThreadPoolName();
+        String cacheKey = RegistryEnumVO.THREAD_POOL_CONFIG_LIST_KEY.getKey() + "_" + threadPoolConfigEntity.getAppName() + "_" + threadPoolConfigEntity.getThreadPoolName();
         RBucket<ThreadPoolConfigEntity> bucket = redissonClient.getBucket(cacheKey);
         bucket.set(threadPoolConfigEntity, Duration.ofDays(30));
     }

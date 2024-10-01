@@ -2,12 +2,17 @@ package cn.ztw.middleware.dynamic.thread.pool.sdk.config;
 
 import cn.ztw.middleware.dynamic.thread.pool.sdk.domain.DynamicThreadPoolService;
 import cn.ztw.middleware.dynamic.thread.pool.sdk.domain.IDynamicThreadPoolService;
+import cn.ztw.middleware.dynamic.thread.pool.sdk.domain.model.entity.ThreadPoolConfigEntity;
+import cn.ztw.middleware.dynamic.thread.pool.sdk.domain.vabobj.RegistryEnumVO;
 import cn.ztw.middleware.dynamic.thread.pool.sdk.registry.IRegistry;
 import cn.ztw.middleware.dynamic.thread.pool.sdk.registry.redis.RedisRegistry;
 import cn.ztw.middleware.dynamic.thread.pool.sdk.trigger.job.ThreadPoolDataReportJob;
+import cn.ztw.middleware.dynamic.thread.pool.sdk.trigger.listener.ThreadPoolConfigAdjustListener;
 import com.alibaba.fastjson.JSON;
 import jodd.util.StringUtil;
 import org.redisson.Redisson;
+import org.redisson.api.RBucket;
+import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
 import org.redisson.codec.JsonJacksonCodec;
 import org.redisson.config.Config;
@@ -36,7 +41,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 @EnableScheduling
 public class DynamicThreadPoolAutoConfig {
     private final Logger logger = LoggerFactory.getLogger(DynamicThreadPoolAutoConfig.class);
-
+    private String applicationName;
     @Bean("dynamicThreadRedissonClient")
     public RedissonClient redissonClient(DynamicThreadPoolAutoProperties properties){
         Config config = new Config();
@@ -62,17 +67,38 @@ public class DynamicThreadPoolAutoConfig {
     }
 
     @Bean("dynamicThreadPoolService")
-    public DynamicThreadPoolService dynamicThreadPoolService(ApplicationContext applicationContext, Map<String,ThreadPoolExecutor> threadPoolExecutorMap){
-        String applicationName = applicationContext.getEnvironment().getProperty("spring.application.name");
+    public DynamicThreadPoolService dynamicThreadPoolService(ApplicationContext applicationContext, Map<String,ThreadPoolExecutor> threadPoolExecutorMap, RedissonClient redissonClient){
+        applicationName = applicationContext.getEnvironment().getProperty("spring.application.name");
         if(StringUtil.isBlank(applicationName)){
             applicationName = "缺省的";
             logger.warn("动态线程池，启动提示，Springboot 应用未配置 spring.application.name 无法获取到应用名称！");
         }
+
+        Set<String> threadPoolKeys = threadPoolExecutorMap.keySet();
+        for(String threadPoolKey : threadPoolKeys){
+            ThreadPoolConfigEntity threadPoolConfigEntity = redissonClient.<ThreadPoolConfigEntity>getBucket(RegistryEnumVO.THREAD_POOL_CONFIG_PARAMETER_LIST_KEY.getKey() + "_" + applicationName + "_" + threadPoolKey).get();
+            if (null == threadPoolConfigEntity) continue;
+            ThreadPoolExecutor threadPoolExecutor = threadPoolExecutorMap.get(threadPoolKey);
+            threadPoolExecutor.setCorePoolSize(threadPoolConfigEntity.getCorePoolSize());
+            threadPoolExecutor.setMaximumPoolSize(threadPoolConfigEntity.getMaximumPoolSize());
+        }
+
         return new DynamicThreadPoolService(applicationName, threadPoolExecutorMap);
     }
 
     @Bean
-    public ThreadPoolDataReportJob threadPoolDataReportJob(DynamicThreadPoolService dynamicThreadPoolService, IRegistry registry){
+    public ThreadPoolDataReportJob threadPoolDataReportJob(IDynamicThreadPoolService dynamicThreadPoolService, IRegistry registry){
         return new ThreadPoolDataReportJob(dynamicThreadPoolService, registry);
+    }
+
+    @Bean
+    public ThreadPoolConfigAdjustListener threadPoolConfigAdjustListener(IDynamicThreadPoolService dynamicThreadPoolService, IRegistry registry){
+        return new ThreadPoolConfigAdjustListener(dynamicThreadPoolService, registry);
+    }
+    @Bean(name = "dynamicThreadPoolRedisTopic")
+    public RTopic threadPoolConfigAdjustListener(RedissonClient redissonClient, ThreadPoolConfigAdjustListener threadPoolConfigAdjustListener){
+        RTopic rTopic = redissonClient.getTopic(RegistryEnumVO.DYNAMIC_THREAD_POOL_REDIS_TOPIC.getKey() + "_" + applicationName);
+        rTopic.addListener(ThreadPoolConfigEntity.class, threadPoolConfigAdjustListener);
+        return rTopic;
     }
 }
