@@ -9,5 +9,5 @@ public interface IDynamicThreadPoolService {
 
     ThreadPoolConfigEntity queryThreadPoolConfigByName(String threadPoolName);
 
-    void updateThreadPoolConfigByName(String threadPoolName);
+    void updateThreadPoolConfig(ThreadPoolConfigEntity threadPoolConfig);
 }

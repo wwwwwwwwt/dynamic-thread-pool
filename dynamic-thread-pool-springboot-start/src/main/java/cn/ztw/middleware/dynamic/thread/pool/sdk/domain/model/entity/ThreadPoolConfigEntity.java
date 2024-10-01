@@ -56,4 +56,9 @@ public class ThreadPoolConfigEntity {
      */
     private int remainingCapacity;
 
+    public ThreadPoolConfigEntity(String appName, String threadPoolName){
+        this.appName = appName;
+        this.threadPoolName = threadPoolName;
+    }
+
 }
